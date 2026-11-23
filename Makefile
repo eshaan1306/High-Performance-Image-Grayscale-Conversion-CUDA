@@ -1,19 +1,15 @@
-# Makefile
-
-NVCC        := nvcc
-CXXFLAGS    := -std=c++17 -I/usr/include/opencv4
-OPENCV_LIBS := -lopencv_core -lopencv_imgcodecs
-
-TARGET      := convert_gray
-SRC         := ConvertRGBToGrey.cu
+NVCC := nvcc
+TARGET := convert_batch
+SRC := convert_batch.cu
+NVCCFLAGS := -std=c++17 -O2
+LIBS := -ltiff
 
 .PHONY: all clean
 
 all: $(TARGET)
 
-$(TARGET): $(SRC)
-	$(NVCC) $(CXXFLAGS) $< -o $@ $(OPENCV_LIBS)
+$(TARGET): $(SRC) convert_batch.hpp
+	$(NVCC) $(NVCCFLAGS) $(SRC) -o $(TARGET) $(LIBS)
 
 clean:
 	rm -f $(TARGET)
-

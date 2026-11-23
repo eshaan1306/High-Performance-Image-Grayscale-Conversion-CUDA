@@ -1,95 +1,105 @@
-# Batch Grayscale Conversion of Aerial TIFF Images Using CUDA
+# GPU Batch Grayscale Image Conversion with CUDA
 
-A small utility that scans a folder of high‑resolution TIFF images, converts each pixel from RGBA to 8‑bit grayscale on the GPU, and writes out `_gray.tiff` files. Leverages CUDA for parallel pixel processing and libtiff for fast disk I/O, while C++17’s `<filesystem>` handles directory traversal.
+This project performs GPU-accelerated grayscale conversion on a collection of TIFF images using CUDA.
 
-tldr: gray_out folder contains result and images contain orignal images images used are from the assignment links
+## Project Description
 
----
+The program processes a batch of aerial TIFF images and converts each RGB image to an 8-bit grayscale image.
 
-## Table of Contents
+Image loading and saving are handled on the CPU using libtiff, while the actual pixel conversion is performed on an NVIDIA GPU using a custom CUDA kernel.
 
-- [Features](#features)  
-- [Prerequisites](#prerequisites)  
-- [Directory Structure](#directory-structure)  
-- [Building](#building)  
-- [Running](#running)  
-- [Example](#example)  
-- [License](#license)
+The CUDA kernel assigns GPU threads to image pixels and computes the grayscale value using:
 
----
+`0.30 * R + 0.59 * G + 0.11 * B`
 
-## Features
+## Dataset
 
-- **Batch processing**: Automatically finds all `.tif`/`.tiff` files in an input folder.  
-- **GPU‑accelerated**: Converts RGBA to grayscale in parallel on the CUDA device.  
-- **LibTIFF I/O**: Fast, lossless reading/writing of TIFF images.  
-- **Modern C++17**: Uses `<filesystem>` for clean directory traversal.
+The project uses 38 aerial TIFF images from the USC-SIPI Image Database.
 
----
+The dataset contains tens of large images and therefore satisfies the assignment requirement for processing a large amount of image data.
 
-## Prerequisites
+Input images are stored in:
 
-- **CUDA Toolkit** (10.x or newer)  
-- **libtiff** development headers and library  
-- A C++17‑capable host compiler (e.g., `g++`, `clang++`)  
-- **make**, **bash**
+`images/`
 
-_On Ubuntu/Debian, you can install dependencies via_  
+GPU-generated grayscale images are stored in:
+
+`gray_out/`
+
+## GPU Computation
+
+GPU computation is implemented in `convert_batch.cu`.
+
+The program:
+
+1. Loads each TIFF image into host memory.
+2. Allocates CUDA device memory using `cudaMalloc`.
+3. Copies the image from host memory to GPU memory using `cudaMemcpy`.
+4. Launches the `rgb2grayKernel` CUDA kernel.
+5. Processes image pixels in parallel on the GPU.
+6. Copies the grayscale result back to host memory.
+7. Writes the resulting grayscale TIFF image to disk.
+
+The CUDA kernel is launched using CUDA grid and block execution:
+
+`rgb2grayKernel<<<blocks, threadsPerBlock>>>(...)`
+
+This project therefore performs the main image-processing operation using GPU computation rather than CPU-only processing.
+
+## Requirements
+
+- NVIDIA CUDA-capable GPU
+- CUDA Toolkit / `nvcc`
+- C++17
+- libtiff
+- make
+
+On Ubuntu:
+
 ```bash
-sudo apt update
-sudo apt install build-essential libtiff-dev cuda-toolkit make
+sudo apt-get install libtiff-dev
 ```
 
-Directory Structure
-.
-├── convert_batch.cu      # main batch + kernel implementation
-├── convert_batch.hpp     # declarations for batch functions & kernel
-├── Makefile              # build rules
-├── run.sh                # simple runner script
-└── images/               # (place your .tiff inputs here)
-
-Building
-
-From the project root, simply run:
-```bash
-make
-```
-This compiles convert_batch.cu into the convert_batch executable, linking against libtiff and the CUDA runtime.
-
-If you ever need to clean up:
+## Build
 
 ```bash
 make clean
-```
-
-Running
-
-You can invoke the tool directly:
-```bash
-./convert_batch <input_dir> <output_dir> [-t threadsPerBlock]
-```
-Or use the provided run.sh wrapper:
-```bash
-bash run.sh <input_dir> <output_dir> [threadsPerBlock]
-```
-<input_dir>: folder containing your .tif/.tiff files
-
-<output_dir>: folder where *_gray.tiff files will be written (created if missing)
-
-threadsPerBlock (optional): number of threads per CUDA block (default: 256)
-
-Example
-
-Place your aerial images in images/.
-
-Build the project:
-```bash
 make
 ```
-Run the batch conversion:
-```bash
-bash run.sh images/ gray_out/ 512
-```
-Check gray_out/ for your converted _gray.tiff files.
 
-Also i have tried following as much as c++ guidelines as possible 
+## Run
+
+```bash
+mkdir -p gray_out
+./convert_batch images gray_out -t 512
+```
+
+To save execution output:
+
+```bash
+mkdir -p proof
+./convert_batch images gray_out -t 512 | tee proof/execution.log
+```
+
+## Results
+
+The CUDA program successfully processed all 38 TIFF input images and generated 38 grayscale TIFF output images.
+
+Execution was performed using an NVIDIA GPU in Google Colab.
+
+Proof of execution is included in:
+
+- `proof/execution.log`
+- `proof/execution.png`
+
+Example generated images can be found in the `gray_out/` directory.
+
+## Source Code
+
+- `convert_batch.cu` — CUDA implementation and batch image-processing logic
+- `convert_batch.hpp` — declarations
+- `Makefile` — CUDA build configuration
+
+## Dataset Source
+
+USC-SIPI Image Database — Aerials image collection.
